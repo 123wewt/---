@@ -1,0 +1,120 @@
+import os
+import subprocess
+import socket
+
+
+def list_files(directory="."):
+    """列出当前目录下的文件和文件夹"""
+    print(f"当前目录: {os.path.abspath(directory)}")
+    for item in os.listdir(directory):
+        print(item)
+
+
+def change_directory(new_dir):
+    """切换当前工作目录"""
+    try:
+        os.chdir(new_dir)
+        print(f"切换到目录: {os.getcwd()}")
+    except FileNotFoundError:
+        print(f"目录不存在: {new_dir}")
+
+
+def read_file(file_path):
+    """读取文件内容"""
+    try:
+        with open(file_path, "r") as f:
+            print(f.read())
+    except FileNotFoundError:
+        print(f"文件不存在: {file_path}")
+    except PermissionError:
+        print(f"无权限读取文件: {file_path}")
+
+
+def execute_command(command):
+    """执行系统命令"""
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        print(result.stdout)
+        if result.stderr:
+            print(f"错误: {result.stderr}")
+    except Exception as e:
+        print(f"命令执行失败: {e}")
+
+
+def start_file_upload_server(port=12345):
+    """启动文件上传服务器"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', port))
+        s.listen(1)
+        print(f"文件上传服务器已启动，监听 127.0.0.1:{port}")
+
+        conn, addr = s.accept()
+        print(f"已连接客户端: {addr}")
+
+        # 接收文件名
+        file_name = conn.recv(1024).decode()
+        print(f"接收文件: {file_name}")
+
+        # 接收文件内容
+        with open(file_name, "wb") as f:
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                f.write(data)
+        print(f"文件 {file_name} 接收完成")
+
+        conn.close()
+
+
+def upload_file(file_path, host='127.0.0.1', port=12345):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host, port))
+        file_name = os.path.basename(file_path)
+        s.send(file_name.encode())
+
+        with open(file_path, "rb") as f:
+            while True:
+                data = f.read(1024)
+                if not data:
+                    break
+                s.send(data)
+    print(f"文件 {file_name} 上传完成")
+
+
+def main():
+    print("简易终端工具 - 类似蚁剑的功能")
+    while True:
+        print("\n选项:")
+        print("1. 列出当前目录文件")
+        print("2. 切换目录")
+        print("3. 读取文件内容")
+        print("4. 执行系统命令")
+        print("5. 文件上传")
+        print("6. 退出")
+        choice = input("请输入选项: ")
+
+        if choice == "1":
+            list_files()
+        elif choice == "2":
+            new_dir = input("请输入目标目录: ")
+            change_directory(new_dir)
+        elif choice == "3":
+            file_path = input("请输入文件路径: ")
+            read_file(file_path)
+        elif choice == "4":
+            command = input("请输入要执行的命令: ")
+            execute_command(command)
+        elif choice == "5":
+            file_to_upload = input("请输入要上传的文件路径: ")
+            start_file_upload_server()
+            upload_file(file_to_upload)
+        elif choice == "6":
+            print("退出程序。")
+            break
+        else:
+            print("无效选项，请重新输入。")
+
+
+if __name__ == "__main__":
+    main()
